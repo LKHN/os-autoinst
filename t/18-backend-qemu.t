@@ -543,6 +543,23 @@ subtest 'special cases when starting QEMU' => sub {
     unlike $qemu_params, qr{order=}, 'order parameter not present due to PXEBOOT';
     like $qemu_params, qr{once=n}, 'once=n parameter present due to PXEBOOT';
 
+    # Tests for s390x support
+    @qemu_params = ();
+    $bmwqemu::vars{ARCH} = 's390x';
+    $bmwqemu::vars{QEMUMACHINE} = 's390-ccw-virtio';
+    $bmwqemu::vars{QEMU_VIDEO_DEVICE} = 'virtio-gpu';
+    combined_like { $backend->start_qemu } qr{.+}s, 'invoked for s390x';
+    $qemu_params = Mojo::Collection->new(\@qemu_params)->flatten->join(' ');
+    like $qemu_params, qr/virtio-scsi/, 'virtio-scsi present due to ARCH';
+    like $qemu_params, qr/virtio-gpu,edid=on,xres=1024,yres=768/, 'virtio-gpu with EDID support present due to QEMU_VIDEO_DEVICE';
+    like $qemu_params, qr/s390-ccw-virtio/, 's390-ccw-virtio present as machine type due to QEMUMACHINE';
+    unlike $qemu_params, qr/boot/, '-boot order=/once= not present due to ARCH';
+    like $qemu_params, qr/virtio-keyboard/, 'virtio-keyboard present due to ARCH';
+    unlike $qemu_params, qr/(snd0|(intel-)?hda)/, 'Audio not present due to ARCH';
+    like $qemu_params, qr/virtio-rng/, 'virtio-rng present due to ARCH';
+    unlike $qemu_params, qr/usb-tablet/, 'usb-tablet not present due to ARCH';
+    like $qemu_params, qr/virtio-tablet/, 'virtio-tablet present due to ARCH';
+
     subtest 'various error cases' => sub {
         $bmwqemu::vars{NICTYPE} = 'foo';
         combined_like { throws_ok { $backend->start_qemu } qr/unknown NICTYPE foo/, 'dies on unknown NICTYPE' }
